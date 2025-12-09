@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Translate - Speech to Speech</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 0.9em;
+        }
+        
+        .language-selector {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .language-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        label {
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 8px;
+            font-size: 0.9em;
+        }
+        
+        select {
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1em;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        select:hover {
+            border-color: #667eea;
+        }
+        
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .record-section {
+            text-align: center;
+            margin: 30px 0;
+        }
+        
+        .record-button {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-size: 1.2em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+            position: relative;
+        }
+        
+        .record-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 30px rgba(102, 126, 234, 0.6);
+        }
+        
+        .record-button:active {
+            transform: scale(0.95);
+        }
+        
+        .record-button.recording {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        .status {
+            margin-top: 15px;
+            font-size: 0.95em;
+            color: #666;
+            min-height: 24px;
+        }
+        
+        .status.recording {
+            color: #f5576c;
+            font-weight: 600;
+        }
+        
+        .status.translating {
+            color: #667eea;
+            font-weight: 600;
+        }
+        
+        .audio-player {
+            background: #f7f7f7;
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .audio-player.show {
+            display: block;
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .audio-player h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }
+        
+        audio {
+            width: 100%;
+            outline: none;
+        }
+        
+        .instructions {
+            background: #f0f4ff;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-size: 0.9em;
+            color: #555;
+        }
+        
+        .instructions strong {
+            color: #667eea;
+        }
+        
+        .error {
+            background: #ffe0e0;
+            border-left: 4px solid #f5576c;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-size: 0.9em;
+            color: #c33;
+            display: none;
+        }
+        
+        .error.show {
+            display: block;
+        }
+        
+        .walkie-talkie-mode {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px 0;
+            padding: 12px;
+            background: #f7f7f7;
+            border-radius: 10px;
+        }
+        
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 28px;
+        }
+        
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 28px;
+        }
+        
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .slider {
+            background-color: #667eea;
+        }
+        
+        input:checked + .slider:before {
+            transform: translateX(22px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎙️ Live Translate</h1>
+        <p class="subtitle">Speech-to-Speech Translation • Offline • Real-time</p>
+        
+        <div class="language-selector">
+            <div class="language-group">
+                <label for="src-lang">Speak in:</label>
+                <select id="src-lang">
+                    <option value="eng">English</option>
+                    <option value="spa">Spanish</option>
+                    <option value="fra">French</option>
+                    <option value="deu">German</option>
+                    <option value="ita">Italian</option>
+                    <option value="por">Portuguese</option>
+                    <option value="rus">Russian</option>
+                    <option value="cmn">Mandarin Chinese</option>
+                    <option value="jpn">Japanese</option>
+                    <option value="kor">Korean</option>
+                    <option value="arb">Arabic</option>
+                    <option value="hin">Hindi</option>
+                </select>
+            </div>
+            
+            <div class="language-group">
+                <label for="tgt-lang">Translate to:</label>
+                <select id="tgt-lang">
+                    <option value="spa">Spanish</option>
+                    <option value="eng">English</option>
+                    <option value="fra">French</option>
+                    <option value="deu">German</option>
+                    <option value="ita">Italian</option>
+                    <option value="por">Portuguese</option>
+                    <option value="rus">Russian</option>
+                    <option value="cmn">Mandarin Chinese</option>
+                    <option value="jpn">Japanese</option>
+                    <option value="kor">Korean</option>
+                    <option value="arb">Arabic</option>
+                    <option value="hin">Hindi</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="walkie-talkie-mode">
+            <span style="color: #666; font-weight: 500;">Walkie-Talkie Mode:</span>
+            <label class="switch">
+                <input type="checkbox" id="walkie-mode" checked>
+                <span class="slider"></span>
+            </label>
+            <span style="color: #999; font-size: 0.85em;">(Auto-translate on release)</span>
+        </div>
+        
+        <div class="record-section">
+            <button class="record-button" id="record-btn">
+                <span id="btn-text">HOLD TO<br>RECORD</span>
+            </button>
+            <div class="status" id="status">Press and hold to record your voice</div>
+        </div>
+        
+        <div class="audio-player" id="audio-player">
+            <h3>🔊 Translated Audio</h3>
+            <audio id="translated-audio" controls></audio>
+        </div>
+        
+        <div class="error" id="error"></div>
+        
+        <div class="instructions">
+            <strong>How to use:</strong><br>
+            1. Select your source and target languages<br>
+            2. Press and hold the button to record<br>
+            3. Release to auto-translate (walkie-talkie mode)<br>
+            4. Translation plays automatically
+        </div>
+    </div>
+    
+    <script>
+        let mediaRecorder;
+        let audioChunks = [];
+        let isRecording = false;
+        let walkieTalkieMode = true;
+        
+        const recordBtn = document.getElementById('record-btn');
+        const btnText = document.getElementById('btn-text');
+        const status = document.getElementById('status');
+        const audioPlayer = document.getElementById('audio-player');
+        const translatedAudio = document.getElementById('translated-audio');
+        const errorDiv = document.getElementById('error');
+        const walkieModeCheckbox = document.getElementById('walkie-mode');
+        const srcLangSelect = document.getElementById('src-lang');
+        const tgtLangSelect = document.getElementById('tgt-lang');
+        
+        // Walkie-talkie mode toggle
+        walkieModeCheckbox.addEventListener('change', (e) => {
+            walkieTalkieMode = e.target.checked;
+            if (walkieTalkieMode) {
+                btnText.innerHTML = 'HOLD TO<br>RECORD';
+                status.textContent = 'Press and hold to record your voice';
+            } else {
+                btnText.innerHTML = 'CLICK TO<br>RECORD';
+                status.textContent = 'Click to start/stop recording';
+            }
+        });
+        
+        // Initialize microphone
+        async function initMicrophone() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        sampleRate: 16000
+                    } 
+                });
+                mediaRecorder = new MediaRecorder(stream, {
+                    mimeType: 'audio/webm'
+                });
+                
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        audioChunks.push(event.data);
+                    }
+                };
+                
+                mediaRecorder.onstop = async () => {
+                    if (walkieTalkieMode) {
+                        await processRecording();
+                    }
+                };
+                
+                return true;
+            } catch (err) {
+                showError('Microphone access denied. Please allow microphone access and refresh.');
+                return false;
+            }
+        }
+        
+        // Start recording
+        async function startRecording() {
+            if (!mediaRecorder) {
+                const initialized = await initMicrophone();
+                if (!initialized) return;
+            }
+            
+            audioChunks = [];
+            audioPlayer.classList.remove('show');
+            errorDiv.classList.remove('show');
+            
+            mediaRecorder.start();
+            isRecording = true;
+            recordBtn.classList.add('recording');
+            status.textContent = '🎤 Recording... speak now';
+            status.classList.add('recording');
+            status.classList.remove('translating');
+        }
+        
+        // Stop recording
+        function stopRecording() {
+            if (mediaRecorder && isRecording) {
+                mediaRecorder.stop();
+                isRecording = false;
+                recordBtn.classList.remove('recording');
+                status.classList.remove('recording');
+                
+                if (!walkieTalkieMode) {
+                    // Manual mode - wait for user to click translate
+                    status.textContent = 'Recording stopped. Click again to translate.';
+                }
+            }
+        }
+        
+        // Process and translate recording
+        async function processRecording() {
+            if (audioChunks.length === 0) {
+                showError('No audio recorded. Please try again.');
+                return;
+            }
+            
+            status.textContent = '⏳ Translating...';
+            status.classList.add('translating');
+            
+            try {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                const formData = new FormData();
+                formData.append('audio', audioBlob, 'recording.webm');
+                formData.append('src_lang', srcLangSelect.value);
+                formData.append('tgt_lang', tgtLangSelect.value);
+                
+                const response = await fetch('http://localhost:8000/translate', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Translation failed: ${response.statusText}`);
+                }
+                
+                const audioData = await response.blob();
+                
+                // Create URL and play
+                const audioUrl = URL.createObjectURL(audioData);
+                translatedAudio.src = audioUrl;
+                audioPlayer.classList.add('show');
+                
+                // Auto-play
+                translatedAudio.play();
+                
+                status.textContent = '✅ Translation complete! Playing...';
+                status.classList.remove('translating');
+                
+            } catch (err) {
+                showError(`Translation error: ${err.message}`);
+                status.textContent = 'Press and hold to record your voice';
+                status.classList.remove('translating');
+            }
+        }
+        
+        // Show error message
+        function showError(message) {
+            errorDiv.textContent = message;
+            errorDiv.classList.add('show');
+        }
+        
+        // Event listeners for walkie-talkie mode
+        recordBtn.addEventListener('mousedown', () => {
+            if (walkieTalkieMode) {
+                startRecording();
+            }
+        });
+        
+        recordBtn.addEventListener('mouseup', () => {
+            if (walkieTalkieMode) {
+                stopRecording();
+            }
+        });
+        
+        recordBtn.addEventListener('mouseleave', () => {
+            if (walkieTalkieMode && isRecording) {
+                stopRecording();
+            }
+        });
+        
+        // Touch events for mobile
+        recordBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (walkieTalkieMode) {
+                startRecording();
+            }
+        });
+        
+        recordBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            if (walkieTalkieMode) {
+                stopRecording();
+            }
+        });
+        
+        // Click mode (non-walkie-talkie)
+        recordBtn.addEventListener('click', () => {
+            if (!walkieTalkieMode) {
+                if (!isRecording) {
+                    startRecording();
+                } else {
+                    stopRecording();
+                    processRecording();
+                }
+            }
+        });
+        
+        // Check API status on load
+        fetch('http://localhost:8000/health')
+            .then(res => res.json())
+            .then(data => {
+                console.log('API Status:', data);
+            })
+            .catch(err => {
+                showError('Cannot connect to translation API. Make sure the server is running on port 8000.');
+            });
+    </script>
+</body>
+</html>

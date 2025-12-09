@@ -1,0 +1,12 @@
+transformers
+torch
+torchaudio
+sounddevice
+numpy
+streamlit
+soundfile
+sentencepiece
+fastapi
+uvicorn
+python-multipart
+requests
